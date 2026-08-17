@@ -32,10 +32,10 @@
     ].filter(Boolean);
 
     for (const element of candidates) {
-      const text = cleanText(extractVisibleText(element));
+      const markdown = htmlToMarkdown(element);
 
-      if (isUsefulInstructionText(text)) {
-        return trimLongText(removeLikelyEditorNoise(text), 12000);
+      if (isUsefulInstructionText(markdown)) {
+        return trimLongText(removeLikelyEditorNoise(markdown), 12000);
       }
     }
 
@@ -155,9 +155,13 @@
     return knownLanguages.find((language) => tokens.includes(language)) || "";
   }
 
-  function extractVisibleText(root) {
+  function htmlToMarkdown(root) {
     if (!root || !isVisible(root)) {
       return "";
+    }
+
+    if (typeof TurndownService === "undefined") {
+      return cleanText(root.innerText || root.textContent || "");
     }
 
     const ignoredSelectors = [
@@ -174,7 +178,39 @@
 
     const clone = root.cloneNode(true);
     clone.querySelectorAll(ignoredSelectors.join(",")).forEach((element) => element.remove());
-    return clone.innerText || clone.textContent || "";
+    removeDuplicateTitle(clone);
+    absolutizeUrls(clone);
+
+    const turndownService = new TurndownService({
+      bulletListMarker: "-",
+      codeBlockStyle: "fenced",
+      headingStyle: "atx",
+      linkStyle: "inlined",
+      preformattedCode: true,
+      strongDelimiter: "**",
+    });
+
+    turndownService.remove(["script", "style"]);
+
+    return cleanMarkdown(turndownService.turndown(clone));
+  }
+
+  function removeDuplicateTitle(root) {
+    const firstHeading = root.querySelector("h1");
+
+    if (firstHeading && cleanText(firstHeading.textContent) === extractTitle()) {
+      firstHeading.remove();
+    }
+  }
+
+  function absolutizeUrls(root) {
+    root.querySelectorAll("a[href]").forEach((link) => {
+      link.href = new URL(link.getAttribute("href"), window.location.href).href;
+    });
+
+    root.querySelectorAll("img[src]").forEach((image) => {
+      image.src = new URL(image.getAttribute("src"), window.location.href).href;
+    });
   }
 
   function cleanText(value) {
@@ -188,6 +224,14 @@
   function cleanCode(value) {
     return String(value || "")
       .replace(/\u00a0/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function cleanMarkdown(value) {
+    return String(value || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
