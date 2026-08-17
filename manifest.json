@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Boot.dev to VS Code",
+  "version": "0.1.0",
+  "description": "Export the current Boot.dev lesson into local files you can open in VS Code.",
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://www.boot.dev/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.boot.dev/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bootdev-to-vscode@example.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}
